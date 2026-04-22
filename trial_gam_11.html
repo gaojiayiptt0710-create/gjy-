@@ -9,10 +9,13 @@
         body { font-family: 'PingFang SC', sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding: 2rem 0; }
         #quiz-container { background: white; padding: 3rem; border: 2px solid var(--p); width: 90%; max-width: 500px; box-shadow: 10px 10px 0px var(--p); }
         
-        .question-block { margin-bottom: 3rem; border-bottom: 1px solid #eee; pb: 2rem; }
+        .question-block { margin-bottom: 3rem; border-bottom: 1px solid #eee; padding-bottom: 2rem; }
         .question-block:last-of-type { border-bottom: none; }
         
-        h2 { font-size: 1.3rem; margin-bottom: 1.5rem; border-left: 4px solid var(--a); padding-left: 1rem; line-height: 1.4; }
+        .q-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+        h2 { font-size: 1.3rem; margin: 0; border-left: 4px solid var(--a); padding-left: 1rem; line-height: 1.4; flex: 1; }
+        .selection-status { font-size: 0.9rem; color: var(--a); font-weight: bold; background: #fff5f5; padding: 2px 8px; border-radius: 4px; display: none; margin-left: 10px; white-space: nowrap; }
+        
         .options { display: flex; flex-direction: column; gap: 10px; }
         
         .btn { 
@@ -26,7 +29,7 @@
             outline: none;
         }
         .btn:hover { background: #f9f9f9; }
-        .btn.selected { background: var(--p); color: white; border-color: var(--p); }
+        .btn.selected { background: var(--p); color: white; border-color: var(--p); box-shadow: 4px 4px 0px var(--a); }
 
         #submit-section { text-align: center; margin-top: 2rem; }
         #submit-btn {
@@ -52,12 +55,10 @@
 <body>
 
 <div id="quiz-container">
-    <div id="q-wrapper">
-        <!-- 题目将在这里生成 -->
-    </div>
+    <div id="q-wrapper"></div>
 
     <div id="submit-section">
-        <button id="submit-btn" onclick="handleSubmit()">提交测评</button>
+        <button id="submit-btn" onclick="handleSubmit()">查看测评结果</button>
     </div>
 
     <div id="res">
@@ -111,10 +112,13 @@
             const div = document.createElement('div');
             div.className = 'question-block';
             div.innerHTML = `
-                <h2>${q.t}</h2>
+                <div class="q-header">
+                    <h2>${q.t}</h2>
+                    <span class="selection-status" id="status-${qi}"></span>
+                </div>
                 <div class="options" id="options-${qi}">
                     ${q.o.map((opt, oi) => `
-                        <button class="btn" onclick="handleSelect(${qi}, ${oi})">${opt.text}</button>
+                        <button class="btn" onclick="handleSelect(${qi}, ${oi}, '${opt.text[0]}')">${opt.text}</button>
                     `).join('')}
                 </div>
             `;
@@ -122,9 +126,14 @@
         });
     }
 
-    window.handleSelect = (qi, oi) => {
+    window.handleSelect = (qi, oi, label) => {
         // 更新数据
         userSelections[qi] = questions[qi].o[oi].s;
+        
+        // 更新状态文字
+        const statusSpan = document.getElementById(`status-${qi}`);
+        statusSpan.innerText = `已选 ${label}`;
+        statusSpan.style.display = 'inline-block';
         
         // 更新 UI 高亮
         const buttons = document.querySelectorAll(`#options-${qi} .btn`);
@@ -135,13 +144,11 @@
     }
 
     window.handleSubmit = () => {
-        // 校验是否全选
         if(userSelections.includes(null)) {
             alert("请确保每一道题都选了一个唯一的选项哦！");
             return;
         }
 
-        // 计算结果
         let finalScores = [0, 0, 0, 0];
         userSelections.forEach(s => {
             s.forEach((v, i) => finalScores[i] += v);
@@ -189,8 +196,6 @@
 
         document.getElementById('res-type').innerText = type;
         document.getElementById('res-desc').innerText = desc;
-        
-        // 自动回到顶部查看结果
         window.scrollTo(0, 0);
     }
 
