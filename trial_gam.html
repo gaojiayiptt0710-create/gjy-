@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人格属性测评</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #e74c3c;
+            --bg-color: #f4f7f6;
+        }
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        #quiz-container {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 500px;
+        }
+        .progress-bar {
+            height: 6px;
+            background: #eee;
+            border-radius: 3px;
+            margin-bottom: 2rem;
+        }
+        #progress-inner {
+            height: 100%;
+            background: var(--accent-color);
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+        .question { display: none; }
+        .question.active { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        h2 { color: var(--primary-color); margin-bottom: 2rem; font-size: 1.5rem; }
+        .options { display: flex; flex-direction: column; gap: 12px; }
+        
+        .option-btn {
+            padding: 15px 20px;
+            border: 2px solid #f0f0f0;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            font-size: 1.1rem;
+            color: #444;
+        }
+        .option-btn:hover {
+            border-color: var(--accent-color);
+            background-color: #fdf2f2;
+        }
+        .option-btn.selected {
+            border-color: var(--accent-color);
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        #submit-btn {
+            margin-top: 2rem;
+            width: 100%;
+            padding: 15px;
+            background: #ccc;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            cursor: not-allowed;
+            transition: background 0.3s;
+        }
+        #submit-btn.enabled {
+            background: var(--accent-color);
+            cursor: pointer;
+        }
+
+        #result-container {
+            display: none;
+            text-align: center;
+        }
+        .result-title { color: var(--accent-color); font-size: 2.2rem; margin: 1.5rem 0; font-weight: bold; }
+        .result-desc { line-height: 1.8; color: #555; background: #fff5f5; padding: 2rem; border-radius: 12px; font-size: 1.2rem; border-left: 5px solid var(--accent-color); }
+        .restart-btn {
+            margin-top: 2rem;
+            padding: 12px 30px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div id="quiz-container">
+    <div class="progress-bar"><div id="progress-inner"></div></div>
+
+    <div id="questions-wrapper"></div>
+
+    <button id="submit-btn" onclick="showResult()" style="display: none;">提交结果</button>
+
+    <div id="result-container">
+        <div class="result-title" id="res-type"></div>
+        <div class="result-desc" id="res-text"></div>
+        <button class="restart-btn" onclick="location.reload()">重新测试</button>
+    </div>
+</div>
+
+<script>
+    const questions = [
+        {
+            title: "你觉得你自己是人类吗？",
+            options: [
+                { text: "A：是", scores: { Dim1: 3, Dim2: 0 } },
+                { text: "B：不是", scores: { Dim1: 0, Dim2: 3 } },
+                { text: "C：我未必不是人", scores: { Dim1: 1, Dim2: 1 } }
+            ]
+        },
+        {
+            title: "那你是人类吗？",
+            options: [
+                { text: "A：是", scores: { Dim1: 3, Dim2: 0 } },
+                { text: "B：不是", scores: { Dim1: 0, Dim2: 3 } },
+                { text: "C：我未尝不是人", scores: { Dim1: 1, Dim2: 1 } }
+            ]
+        }
+    ];
+
+    let currentStep = 0;
+    let totalScores = { Dim1: 0, Dim2: 0 };
+    let userSelections = [];
+
+    function initQuiz() {
+        const wrapper = document.getElementById('questions-wrapper');
+        questions.forEach((q, qIdx) => {
+            const qDiv = document.createElement('div');
+            qDiv.className = `question ${qIdx === 0 ? 'active' : ''}`;
+            qDiv.id = `q-${qIdx}`;
+            qDiv.innerHTML = `
+                <h2>${qIdx + 1}. ${q.title}</h2>
+                <div class="options">
+                    ${q.options.map((opt, optIdx) => `
+                        <button class="option-btn" onclick="selectOption(${qIdx}, ${optIdx}, '${encodeURIComponent(JSON.stringify(opt.scores))}')">
+                            ${opt.text}
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+            wrapper.appendChild(qDiv);
+        });
+        updateProgress();
+    }
+
+    window.selectOption = (qIdx, optIdx, scoreStr) => {
+        // 高亮选中状态
+        const buttons = document.querySelectorAll(`#q-${qIdx} .option-btn`);
+        buttons.forEach(btn => btn.classList.remove('selected'));
+        buttons[optIdx].classList.add('selected');
+
+        // 存储分数
+        userSelections[qIdx] = JSON.parse(decodeURIComponent(scoreStr));
+
+        // 自动跳转或显示提交按钮
+        setTimeout(() => {
+            if (currentStep < questions.length - 1) {
+                document.getElementById(`q-${currentStep}`).classList.remove('active');
+                currentStep++;
+                document.getElementById(`q-${currentStep}`).classList.add('active');
+                updateProgress();
+            } else {
+                // 最后一步，显示提交按钮
+                document.getElementById('submit-btn').style.display = 'block';
+                document.getElementById('submit-btn').classList.add('enabled');
+                document.getElementById('submit-btn').innerText = "点击提交";
+            }
+        }, 300);
+    };
+
+    function updateProgress() {
+        const percent = ((currentStep) / questions.length) * 100;
+        document.getElementById('progress-inner').style.width = percent + '%';
+    }
+
+    window.showResult = () => {
+        // 汇总最终分数
+        totalScores = { Dim1: 0, Dim2: 0 };
+        userSelections.forEach(s => {
+            totalScores.Dim1 += s.Dim1;
+            totalScores.Dim2 += s.Dim2;
+        });
+
+        document.getElementById('questions-wrapper').style.display = 'none';
+        document.getElementById('submit-btn').style.display = 'none';
+        document.getElementById('progress-inner').parentElement.style.display = 'none';
+        document.getElementById('result-container').style.display = 'block';
+
+        let title = "";
+        let desc = "";
+
+        // 逻辑判断
+        if (totalScores.Dim1 > 5) {
+            title = "恭喜你是于海慧人格！";
+            desc = "好歹是个人。";
+        } else if (totalScores.Dim2 > 5) {
+            title = "恭喜你是赵玉镯人格！";
+            desc = "懒得打对名字。";
+        } else if (totalScores.Dim1 === totalScores.Dim2) {
+            title = "恭喜你是黄鑫悦人格！";
+            desc = "认知和本体矛盾的均衡。";
+        } else {
+            title = "恭喜你是主席人格！";
+            desc = "你不是一个极端的物种，适合当文体部主席。";
+        }
+
+        document.getElementById('res-type').innerText = title;
+        document.getElementById('res-text').innerText = desc;
+    };
+
+    initQuiz();
+</script>
+
+</body>
+</html>
