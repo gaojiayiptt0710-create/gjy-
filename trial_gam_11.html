@@ -6,25 +6,60 @@
     <title>gjy深度人格倾向测评</title>
     <style>
         :root { --p: #1a1a1a; --a: #ff4757; --bg: #ffffff; }
-        body { font-family: 'PingFang SC', sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        #quiz-container { background: white; padding: 3rem; border-radius: 0; border: 2px solid var(--p); width: 90%; max-width: 500px; box-shadow: 10px 10px 0px var(--p); }
-        .progress { height: 2px; background: #eee; margin-bottom: 2rem; }
-        #bar { height: 100%; background: var(--p); width: 0%; transition: 0.5s; }
-        h2 { font-size: 1.4rem; margin-bottom: 2rem; border-left: 4px solid var(--a); padding-left: 1rem; line-height: 1.5; }
-        .options { display: flex; flex-direction: column; gap: 15px; }
-        .btn { padding: 15px; border: 1px solid var(--p); background: white; cursor: pointer; text-align: left; font-size: 1rem; transition: 0.2s; }
-        .btn:hover { background: var(--p); color: white; }
+        body { font-family: 'PingFang SC', sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding: 2rem 0; }
+        #quiz-container { background: white; padding: 3rem; border: 2px solid var(--p); width: 90%; max-width: 500px; box-shadow: 10px 10px 0px var(--p); }
+        
+        .question-block { margin-bottom: 3rem; border-bottom: 1px solid #eee; pb: 2rem; }
+        .question-block:last-of-type { border-bottom: none; }
+        
+        h2 { font-size: 1.3rem; margin-bottom: 1.5rem; border-left: 4px solid var(--a); padding-left: 1rem; line-height: 1.4; }
+        .options { display: flex; flex-direction: column; gap: 10px; }
+        
+        .btn { 
+            padding: 12px 15px; 
+            border: 1px solid var(--p); 
+            background: white; 
+            cursor: pointer; 
+            text-align: left; 
+            font-size: 1rem; 
+            transition: 0.2s; 
+            outline: none;
+        }
+        .btn:hover { background: #f9f9f9; }
+        .btn.selected { background: var(--p); color: white; border-color: var(--p); }
+
+        #submit-section { text-align: center; margin-top: 2rem; }
+        #submit-btn {
+            padding: 15px 40px;
+            background: var(--a);
+            color: white;
+            border: 2px solid var(--p);
+            font-size: 1.2rem;
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: 5px 5px 0px var(--p);
+            transition: 0.2s;
+        }
+        #submit-btn:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0px var(--p); }
+        #submit-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px var(--p); }
+
         #res { display: none; text-align: center; }
         .res-t { font-size: 2rem; margin-bottom: 1.5rem; font-weight: 900; }
         .res-d { line-height: 1.8; padding: 2rem; border: 1px solid var(--p); text-align: left; font-size: 1.1rem; margin-bottom: 1.5rem; }
-        .footer-note { font-size: 0.75rem; color: #888; text-align: left; border-top: 1px dashed #ccc; pt: 1rem; line-height: 1.4; }
+        .footer-note { font-size: 0.75rem; color: #888; text-align: left; border-top: 1px dashed #ccc; padding-top: 1rem; line-height: 1.4; }
     </style>
 </head>
 <body>
 
 <div id="quiz-container">
-    <div class="progress"><div id="bar"></div></div>
-    <div id="q-wrapper"></div>
+    <div id="q-wrapper">
+        <!-- 题目将在这里生成 -->
+    </div>
+
+    <div id="submit-section">
+        <button id="submit-btn" onclick="handleSubmit()">提交测评</button>
+    </div>
+
     <div id="res">
         <div style="font-size: 0.8rem; letter-spacing: 5px; margin-bottom: 1rem;">测试结果为：</div>
         <div class="res-t" id="res-type"></div>
@@ -37,7 +72,6 @@
 </div>
 
 <script>
-    // 维度定义：1-人类, 2-智慧, 3-非人, 4-无脑
     const questions = [
         { t: "1. 你是人类吗？", 
           o: [
@@ -69,37 +103,56 @@
         }
     ];
 
-    let step = 0;
-    let scores = [0, 0, 0, 0];
+    let userSelections = new Array(questions.length).fill(null);
 
     function init() {
         const w = document.getElementById('q-wrapper');
-        w.innerHTML = '';
-        questions.forEach((q, i) => {
+        questions.forEach((q, qi) => {
             const div = document.createElement('div');
-            div.className = `question ${i===0?'active':''}`;
-            div.id = `q-${i}`;
-            div.innerHTML = `<h2>${q.t}</h2><div class="options">${q.o.map((opt, oi) => 
-                `<button class="btn" onclick="next(${i}, ${oi})">${opt.text}</button>`).join('')}</div>`;
+            div.className = 'question-block';
+            div.innerHTML = `
+                <h2>${q.t}</h2>
+                <div class="options" id="options-${qi}">
+                    ${q.o.map((opt, oi) => `
+                        <button class="btn" onclick="handleSelect(${qi}, ${oi})">${opt.text}</button>
+                    `).join('')}
+                </div>
+            `;
             w.appendChild(div);
         });
     }
 
-    window.next = (qi, oi) => {
-        questions[qi].o[oi].s.forEach((v, i) => scores[i] += v);
-        document.getElementById(`q-${step}`).classList.remove('active');
-        step++;
-        if(step < questions.length) {
-            document.getElementById(`q-${step}`).classList.add('active');
-            document.getElementById('bar').style.width = (step/questions.length)*100 + '%';
-        } else {
-            showResult();
-        }
+    window.handleSelect = (qi, oi) => {
+        // 更新数据
+        userSelections[qi] = questions[qi].o[oi].s;
+        
+        // 更新 UI 高亮
+        const buttons = document.querySelectorAll(`#options-${qi} .btn`);
+        buttons.forEach((btn, index) => {
+            if(index === oi) btn.classList.add('selected');
+            else btn.classList.remove('selected');
+        });
     }
 
-    function showResult() {
+    window.handleSubmit = () => {
+        // 校验是否全选
+        if(userSelections.includes(null)) {
+            alert("请确保每一道题都选了一个唯一的选项哦！");
+            return;
+        }
+
+        // 计算结果
+        let finalScores = [0, 0, 0, 0];
+        userSelections.forEach(s => {
+            s.forEach((v, i) => finalScores[i] += v);
+        });
+
+        showResult(finalScores);
+    }
+
+    function showResult(scores) {
         document.getElementById('q-wrapper').style.display = 'none';
-        document.getElementById('bar').parentElement.style.display = 'none';
+        document.getElementById('submit-section').style.display = 'none';
         document.getElementById('res').style.display = 'block';
 
         const sorted = [...scores].map((v, i) => ({v, i: i+1})).sort((a,b) => b.v - a.v);
@@ -136,6 +189,9 @@
 
         document.getElementById('res-type').innerText = type;
         document.getElementById('res-desc').innerText = desc;
+        
+        // 自动回到顶部查看结果
+        window.scrollTo(0, 0);
     }
 
     init();
