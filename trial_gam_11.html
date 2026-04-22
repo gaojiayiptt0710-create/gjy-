@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gjy深度人格倾向测评</title>
+    <style>
+        :root { --p: #1a1a1a; --a: #ff4757; --bg: #ffffff; }
+        body { font-family: 'PingFang SC', sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        #quiz-container { background: white; padding: 3rem; border-radius: 0; border: 2px solid var(--p); width: 90%; max-width: 500px; box-shadow: 10px 10px 0px var(--p); }
+        .progress { height: 2px; background: #eee; margin-bottom: 2rem; }
+        #bar { height: 100%; background: var(--p); width: 0%; transition: 0.5s; }
+        h2 { font-size: 1.4rem; margin-bottom: 2rem; border-left: 4px solid var(--a); padding-left: 1rem; line-height: 1.5; }
+        .options { display: flex; flex-direction: column; gap: 15px; }
+        .btn { padding: 15px; border: 1px solid var(--p); background: white; cursor: pointer; text-align: left; font-size: 1rem; transition: 0.2s; }
+        .btn:hover { background: var(--p); color: white; }
+        #res { display: none; text-align: center; }
+        .res-t { font-size: 2rem; margin-bottom: 1.5rem; font-weight: 900; }
+        .res-d { line-height: 1.8; padding: 2rem; border: 1px solid var(--p); text-align: left; font-size: 1.1rem; margin-bottom: 1.5rem; }
+        .footer-note { font-size: 0.75rem; color: #888; text-align: left; border-top: 1px dashed #ccc; pt: 1rem; line-height: 1.4; }
+    </style>
+</head>
+<body>
+
+<div id="quiz-container">
+    <div class="progress"><div id="bar"></div></div>
+    <div id="q-wrapper"></div>
+    <div id="res">
+        <div style="font-size: 0.8rem; letter-spacing: 5px; margin-bottom: 1rem;">测试结果为：</div>
+        <div class="res-t" id="res-type"></div>
+        <div class="res-d" id="res-desc"></div>
+        <div class="footer-note">
+            本测试用到的人名纯属非虚构，因为初代版本乃临时起意制作，添加人数为作者思考名字的时候在群里翻到的人名，后续版本更新会平等加入文体成员。
+        </div>
+        <button onclick="location.reload()" style="margin-top: 2rem; padding: 10px 30px; background: none; border: 1px solid var(--p); cursor: pointer;">重启系统</button>
+    </div>
+</div>
+
+<script>
+    // 维度定义：1-人类, 2-智慧, 3-非人, 4-无脑
+    const questions = [
+        { t: "1. 你是人类吗？", 
+          o: [
+              {s:[4,1,0,1], text:"A：是"}, 
+              {s:[0,1,4,1], text:"C：否"}, 
+              {s:[1,4,1,0], text:"B：我未必不是"}
+          ] 
+        },
+        { t: "2. 你对 gjy 的评价是（请服从真心！）：", 
+          o: [
+              {s:[1,4,1,0], text:"A：是好人"}, 
+              {s:[0,1,4,1], text:"B：gjy 是一个桌子"}, 
+              {s:[1,0,1,4], text:"C：我看 gjy 一般般"}
+          ] 
+        },
+        { t: "3. 你觉得你是人类吗？", 
+          o: [
+              {s:[0,1,4,1], text:"A：否"}, 
+              {s:[1,0,1,4], text:"B：我未必是"}, 
+              {s:[4,1,0,1], text:"C：是"}
+          ] 
+        },
+        { t: "4. 这题选 C 就对了：", 
+          o: [
+              {s:[1,0,1,4], text:"A：我偏不，诶嘿"}, 
+              {s:[4,1,0,1], text:"B：其实我觉得 gjy 完全就是天才"}, 
+              {s:[1,4,1,0], text:"C：我相信 gjy 的设计"}
+          ] 
+        }
+    ];
+
+    let step = 0;
+    let scores = [0, 0, 0, 0];
+
+    function init() {
+        const w = document.getElementById('q-wrapper');
+        w.innerHTML = '';
+        questions.forEach((q, i) => {
+            const div = document.createElement('div');
+            div.className = `question ${i===0?'active':''}`;
+            div.id = `q-${i}`;
+            div.innerHTML = `<h2>${q.t}</h2><div class="options">${q.o.map((opt, oi) => 
+                `<button class="btn" onclick="next(${i}, ${oi})">${opt.text}</button>`).join('')}</div>`;
+            w.appendChild(div);
+        });
+    }
+
+    window.next = (qi, oi) => {
+        questions[qi].o[oi].s.forEach((v, i) => scores[i] += v);
+        document.getElementById(`q-${step}`).classList.remove('active');
+        step++;
+        if(step < questions.length) {
+            document.getElementById(`q-${step}`).classList.add('active');
+            document.getElementById('bar').style.width = (step/questions.length)*100 + '%';
+        } else {
+            showResult();
+        }
+    }
+
+    function showResult() {
+        document.getElementById('q-wrapper').style.display = 'none';
+        document.getElementById('bar').parentElement.style.display = 'none';
+        document.getElementById('res').style.display = 'block';
+
+        const sorted = [...scores].map((v, i) => ({v, i: i+1})).sort((a,b) => b.v - a.v);
+        const top1 = sorted[0], top2 = sorted[1];
+        const min = Math.min(...scores);
+        
+        let type = "", desc = "";
+
+        if (top1.v - min <= 2) {
+            type = "主席人格";
+            desc = "最均衡的人，很适合做文体部主席。";
+        } 
+        else if (top1.v - top2.v <= 2) {
+            const combined = [top1.i, top2.i].sort().join('');
+            const pairs = {
+                "12": ["土神的弟子及其再传弟子", "你完美理解一切智慧，距离神只差一步，可逐渐学习。"],
+                "13": ["黄鑫悦人格", "矛盾与自我认知的综合。"],
+                "14": ["高庆人格", "大果教派的重视信徒，被陶喆星神瞥视过的人类。"],
+                "23": ["铁哥人格", "我很聪明但是我很少干人事。"],
+                "24": ["余倩人格", "QQ堂最严厉的堂主。"],
+                "34": ["卢艳宁人格", "两眼一睁就是玩，艺术在我脑力转！"]
+            };
+            [type, desc] = pairs[combined] || ["复合体", "你的成分过于复杂，连 gjy 都分析不出来了。"];
+        } 
+        else {
+            const singles = [
+                ["于海慧人格", "恭喜你！你最擅长成为人类。"],
+                ["李临禹人格", "玩皇室战争大脑必然发达。"],
+                ["赵玉卓人格", "我甚至懒得打对这个名字。"],
+                ["马语飞人格", "急需提高审美和认知，但是略强于赵玉卓。"]
+            ];
+            [type, desc] = singles[top1.i - 1];
+        }
+
+        document.getElementById('res-type').innerText = type;
+        document.getElementById('res-desc').innerText = desc;
+    }
+
+    init();
+</script>
+</body>
+</html>
