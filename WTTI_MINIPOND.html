@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WTTI v2.5 - 文体人格深度匹配</title>
+    <style>
+        :root { --p: #1a1a1a; --a: #ff4757; --bg: #ffffff; }
+        body { font-family: 'PingFang SC', sans-serif; background: var(--bg); margin: 0; padding: 2rem 0; display: flex; justify-content: center; }
+        #quiz-container { background: white; padding: 2.5rem; border: 2px solid var(--p); width: 90%; max-width: 550px; box-shadow: 12px 12px 0px var(--p); }
+        .brand { font-size: 3.5rem; font-weight: 900; text-align: center; letter-spacing: -3px; margin-bottom: 0.5rem; }
+        .brand-sub { text-align: center; font-size: 0.8rem; color: #888; letter-spacing: 3px; margin-bottom: 3rem; }
+        .q-block { margin-bottom: 3rem; border-bottom: 1px dashed #ddd; padding-bottom: 2rem; }
+        h2 { font-size: 1.2rem; margin-bottom: 1.5rem; border-left: 5px solid var(--a); padding-left: 1rem; line-height: 1.5; }
+        .options { display: flex; flex-direction: column; gap: 10px; }
+        .btn { padding: 14px; border: 1px solid var(--p); background: white; cursor: pointer; text-align: left; transition: 0.2s; font-size: 1rem; position: relative; }
+        .btn:hover { background: #f0f0f0; }
+        .btn.selected { background: var(--p); color: white; box-shadow: 4px 4px 0px var(--a); }
+        .btn.selected::after { content: '已选'; position: absolute; right: 15px; font-size: 0.7rem; background: var(--a); color: white; padding: 2px 6px; border-radius: 3px; }
+        #submit-btn { width: 100%; padding: 20px; background: var(--a); color: white; border: 2px solid var(--p); font-size: 1.3rem; font-weight: 900; cursor: pointer; box-shadow: 6px 6px 0px var(--p); margin-top: 1rem; }
+        #res { display: none; text-align: center; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .match-label { font-size: 0.9rem; letter-spacing: 4px; color: #888; margin-bottom: 1rem; }
+        .res-name { font-size: 2.8rem; font-weight: 900; margin-bottom: 1.5rem; color: var(--p); }
+        .res-desc { line-height: 1.8; padding: 2rem; border: 1px solid var(--p); text-align: center; font-size: 1.1rem; background: #fffafb; white-space: pre-wrap; }
+        .footer-note { font-size: 0.75rem; color: #999; margin-top: 2rem; text-align: center; line-height: 1.5; border-top: 1px solid #eee; padding-top: 1rem; }
+    </style>
+</head>
+<body>
+<div id="quiz-container">
+    <div id="main-view">
+        <div class="brand">WTTI</div>
+        <div class="brand-sub">WENTI TYPE INDICATOR v2.5 (ENTERTAINMENT)</div>
+        <div id="q-wrapper"></div>
+        <button id="submit-btn" onclick="handleSubmit()">匹配我的文体灵魂</button>
+    </div>
+    <div id="res">
+        <div class="match-label">YOUR SOUL MATCH IS</div>
+        <div class="res-name" id="res-name"></div>
+        <div class="res-desc" id="res-desc"></div>
+        <div class="footer-note">
+            * 本测试用到的人名纯属非虚构，仅供娱乐。<br>算法逻辑：四维欧几里得距离最近邻匹配
+        </div>
+        <button onclick="reboot()" style="margin-top: 2rem; padding: 15px 30px; border: 2px solid var(--p); background: white; cursor: pointer; font-weight: bold; box-shadow: 4px 4px 0px var(--p);">重新匹配 / REBOOT</button>
+    </div>
+</div>
+<script>
+    const questions = [
+        { t: "1. gjy 在梦里篡位变成文体部部长，宣布由于自己太优雅提前下班。你的反应是？", 
+          o: [
+              {s:[4, 2, -1, -1], text:"A：怀疑 gjy 被盗号了，考虑报警拯救部长。"}, 
+              {s:[-2, -1, 4, 3], text:"B：狂发“土神优雅”表情包。"}, 
+              {s:[-3, -4, 0, 2], text:"C：已经去打麻将的路上了，完全没发现是假消息。"},
+              {s:[1, 4, 1, -2], text:"D：思考 gjy 为什么昵称叫“土神”？"}
+          ] 
+        },
+        { t: "2. 部门聚餐只剩最后一个鸡腿了，你会？", 
+          o: [
+              {s:[4, 1, -2, -3], text:"A：礼貌询问：“大家都不吃了吗？”"}, 
+              {s:[1, 4, 3, 2], text:"B：计算夹起鸡腿的最佳受力点。"}, 
+              {s:[-4, -3, 0, -2], text:"C：盯着鸡腿思考它的解剖学结构直到被夹走。"},
+              {s:[1, 0, 4, 4], text:"D：拍张照发群里 @所有人 怎么分？"}
+          ] 
+        },
+        { t: "3. 在筹备晚会时音响坏了，你会？", 
+          o: [
+              {s:[4, 0, -2, -1], text:"A：安抚大家情绪，积极寻找维修师傅。"}, 
+              {s:[-1, 4, -2, 1], text:"B：对着音响背诵它的频率响应曲线。"}, 
+              {s:[1, 1, 4, 4], text:"C：用纸卷一个扩音器强行把彩排变个人演唱会。"},
+              {s:[-4, -4, 2, 2], text:"D：蹲在地上开始给音响做心肺复苏。"}
+          ] 
+        },
+        { t: "4. 当群里因为一个梗聊了 99+ 消息时，你的参与方式是？", 
+          o: [
+              {s:[3, 1, -4, -4], text:"A：看完记录，心疼一下自己的手指关节。"}, 
+              {s:[1, -1, 4, 4], text:"B：插队发一张毫不相关的表情包。"}, 
+              {s:[-2, 4, 2, 1], text:"C：指出刚才第 57 条消息中的逻辑错误。"},
+              {s:[0, -4, 3, 2], text:"D：根本没看，直接回复一个“哈哈哈哈哈哈”。"}
+          ] 
+        },
+        { t: "5. 招新面试时，看到一个非常有才华但很古怪的学弟，你会？", 
+          o: [
+              {s:[4, 1, -2, -1], text:"A：真诚欢迎，觉得文体部就需要多样性。"}, 
+              {s:[1, 4, 1, 1], text:"B：通过他眨眼的频率计算他的紧张系数。"}, 
+              {s:[-2, -1, 4, 4], text:"C：当场跟他比拼一段即兴表演。"},
+              {s:[-1, -4, 0, -2], text:"D：盯着他的发际线思考他是不是程序猿。"}
+          ] 
+        },
+        { t: "6. 部门团建去密室逃脱，你通常扮演什么角色？", 
+          o: [
+              {s:[4, -1, -2, -1], text:"A：拿起变身器尝试铠甲勇士合体，保护部员。"}, 
+              {s:[-1, 4, -2, 1], text:"B：研究密室锁芯构造，试图物理通关。"}, 
+              {s:[1, -2, 4, 4], text:"C：负责尖叫，不仅自己叫还带着大家叫。"},
+              {s:[-4, -4, 2, 2], text:"D：迷路了，被 NPC 捡到并带出密室。"}
+          ] 
+        },
+        { t: "7. 晚会结束后合影，你通常会站在？", 
+          o: [
+              {s:[4, -2, -3, -4], text:"A：站在最边上，露出尴尬而不失礼貌的微笑。"}, 
+              {s:[1, 4, 1, 2], text:"B：建议大家按照斐波那契数列排列身高。"}, 
+              {s:[-3, -1, 4, 4], text:"C：直接抢占 C 位，并摆出一个奥特曼姿势。"},
+              {s:[-2, -4, 0, 0], text:"D：没合上，因为当时正在后台吃剩下的盒饭。"}
+          ] 
+        },
+        { t: "8. 如果测试最终没匹配到你自己的人格，你会？", 
+          o: [
+              {s:[4, 2, -3, -4], text:"A：接受结果，下定决心跟随土神学习变强。"}, 
+              {s:[-2, 0, 4, 4], text:"B：在群里嘲讽你测试到人格的那个人。"}, 
+              {s:[1, 4, 3, 1], text:"C：在群里吐槽 gjy 的算法令人忍俊不禁。"},
+              {s:[-4, -4, 0, 0], text:"D：假装一切都没有发生，去打羽毛球。"}
+          ] 
+        }
+    ];
+
+    const memberDatabase = [
+        { name: "于海慧", vector: [-3, 9, 15, 15], desc: "文体部的逻辑与嘈杂核心人类。一条冷知识，慧姐是唯一一个不是文体部但是拥有 WTTI 的人。" },
+        { name: "李临禹", vector: [15, 15, -9, -9], desc: "玩皇室战争大脑必然发达，沉默的时候脑海里面在下牌。" },
+        { name: "赵玉卓", vector: [-15, -15, 15, 15], desc: "非人领域的王者，智慧避雷针，嘴碎界的桌子。拼尽全力没打对名字。" },
+        { name: "马语飞", vector: [-3, -3, 3, 15], desc: "和名字一样的人格，马说自己会飞，你信还是不信？" },
+        { name: "庄庄主席", vector: [3, 9, -3, 3], desc: "最均衡的定海神针。能在发疯和装死之间找到完美的黄金分割点，不愧是文体部主席的首选人格。" },
+        { name: "黄鑫悦", vector: [-9, -3, 15, 9], desc: "丢掉脑子就是嗨！清楚自己在发疯但控制不住碎碎念，气氛组王者。" },
+        { name: "铁哥", vector: [-9, 9, -3, -3], desc: "我很聪明，但我很少干人事。你是莫得感情的逻辑怪咖，用极高的智商审视着这群凡人。" },
+        { name: "高庆", vector: [9, -9, -9, 9], desc: "大果教派的忠实信徒。被陶喆星神瞥视过的人类，显眼包最好的配合者。" },
+        { name: "俞倩", vector: [15, 3, -3, -3], desc: "QQ堂最严厉的堂主，会安静地看其他人整活然后加入进去，能控制自己的发疯。" },
+        { name: "卢艳宁", vector: [-15, 15, 3, 15], desc: "两眼一睁就是玩，艺术在我脑里转！公认魔丸，但是好在擅长睡眠。" },
+        { name: "土神弟子及其再传弟子", vector: [15, 15, 15, 15], desc: "你和土神离得很近，可惜人和神之间的鸿沟还没有成功跨越。拜师晚只能成为再传弟子。" },
+        { name: "郑柯非", vector: [-9, 3, 15, 15], desc: "一个会累的活力永动机，在断句郑柯非人真好会经常把非人单独断句出来。" },
+        { name: "江俞乐", vector: [15, 15, -3, -3], desc: "高智商低调人类的典范。在智慧的江河湖海里游弋，怪不得名字谐音江鱼乐。" },
+        { name: "杨懋迪", vector: [15, 15, 3, 3], desc: "相对的全能六边形战士。如果声音洪亮和话比较多也算进去的话。" },
+        { name: "铮铮主席", vector: [15, 15, -3, -9], desc: "完美的人类领袖。高智商、高人性且极其稳重，这是 AI 对你的评价，gjy 没有恭维和修改。" },
+        { name: "张艺茹", vector: [9, 9, -9, -9], desc: "温和而优雅的清流，过于安静地存在于文体部深水之中潜伏。" }
+    ];
+
+    let userSelections = new Array(8).fill(null);
+    function init() {
+        const w = document.getElementById('q-wrapper');
+        w.innerHTML = '';
+        questions.forEach((q, qi) => {
+            const div = document.createElement('div');
+            div.className = 'q-block';
+            div.innerHTML = `<h2>${q.t}</h2><div class="options" id="opt-${qi}">${q.o.map((opt, oi) => `<button class="btn" onclick="select(${qi}, ${oi})">${opt.text}</button>`).join('')}</div>`;
+            w.appendChild(div);
+        });
+    }
+    window.select = (qi, oi) => {
+        userSelections[qi] = questions[qi].o[oi].s;
+        const btns = document.querySelectorAll(`#opt-${qi} .btn`);
+        btns.forEach((b, i) => i === oi ? b.classList.add('selected') : b.classList.remove('selected'));
+    }
+    window.handleSubmit = () => {
+        if (userSelections.includes(null)) { alert("请先完成所有 8 道题目！"); return; }
+        let userVector = [0, 0, 0, 0];
+        userSelections.forEach(s => s.forEach((v, i) => userVector[i] += v));
+        let minDistance = Infinity; let bestMatch = null;
+        memberDatabase.forEach(member => {
+            let dist = 0; for (let i = 0; i < 4; i++) dist += Math.pow(userVector[i] - member.vector[i], 2);
+            dist = Math.sqrt(dist);
+            if (dist < minDistance) { minDistance = dist; bestMatch = member; }
+        });
+        document.getElementById('main-view').style.display = 'none';
+        document.getElementById('res').style.display = 'block';
+        document.getElementById('res-name').innerText = bestMatch.name;
+        document.getElementById('res-desc').innerText = bestMatch.desc;
+        window.scrollTo(0, 0);
+    }
+    window.reboot = () => {
+        userSelections = new Array(8).fill(null);
+        document.getElementById('res').style.display = 'none';
+        document.getElementById('main-view').style.display = 'block';
+        init();
+        window.scrollTo(0, 0);
+    }
+    init();
+</script>
+</body>
+</html>
